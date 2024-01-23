@@ -81,6 +81,14 @@ const auto viscosity = [](const SPPE::Particle& particle) -> SPPE::Vector_type
 sppe.add_force_function(gravity);
 sppe.add_force_function(viscosity);
 ```
+## Demos
+### Classic particles bouncing around
+https://github.com/tristan-bamford/sppe/assets/120840025/e5a5d0b8-03ab-4949-a454-fde884f75c6e
+### Add a gravity function
+https://github.com/tristan-bamford/sppe/assets/120840025/378e6420-21bc-4fc3-8622-34d4db15e2b0
+### 10k particles
+https://github.com/tristan-bamford/sppe/assets/120840025/e1638630-f37b-4fb4-870b-7a87f9586242
+
 ## Contributing
 
 Contributions to this library are welcome! If you find any issues or have ideas for improvements, please open an issue or create a pull request on the [GitHub repository](https://github.com/tristan-bamford/sppe).
