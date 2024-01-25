@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -O3 -march=native -ftree-vectorize -ffast-math -Wall #-g
+CXXFLAGS = -std=c++20 -march=native -ftree-vectorize -ffast-math -Wall -g -O3
 
 SRC = src
 BIN = bin
@@ -26,4 +26,4 @@ $(BUILD)/particle.o: $(addprefix $(SRC)/, particle.cc particle.h types.h)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:
-	$(RM) $(OBJECTS)
+	$(RM) $(OBJECTS) $(TARGET)
