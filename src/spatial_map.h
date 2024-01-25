@@ -34,8 +34,8 @@ namespace SPPE {
     // "indexing" a particle consists of incrementing the count of the cell that 
     // it maps to.
     void index(const Particle& p) 
-    { ++count_array_[hash(discretize(p.position_[0]), 
-                          discretize(p.position_[1]))]; } // index a particle
+    { ++count_array_[hash(discretize(p.position()[0]), 
+                          discretize(p.position()[1]))]; } // index a particle
     
     void build(const std::span<Particle>&);
     int discretize(Float_type x) const { return std::ceil(x / spacing_); }
@@ -65,8 +65,8 @@ namespace SPPE {
     
     for (auto& particle : particle_span)
     {
-      const auto index = hash(discretize(particle.position_[0]),
-                              discretize(particle.position_[1]));
+      const auto index = hash(discretize(particle.position()[0]),
+                              discretize(particle.position()[1]));
 
       particle_indices_[--count_array_[index]] = &particle;
     }
