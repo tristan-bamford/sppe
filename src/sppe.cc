@@ -22,37 +22,23 @@ namespace SPPE {
   Float_type 
   System::step(Float_type dt)
   {
-    // dynamically create new spatial map each step; spacing is based on largest 
-    // radius
-    Spatial_map spatial_map(particles_.size(), largest_radius_ * 2);
+    // the spatial map is reset when the spacing is set
+    spatial_map_.set_spacing(largest_radius_ * 2);
     
-    // First pass - Update particles, check against the boundary and initialize 
-    // the index table of the spatial map.
-    update(spatial_map, dt);
-
-    // Second pass - finish initializing the index table and build the particle 
-    // indices(pointers) in the spatial map.
-    spatial_map.build();
-
-    // Third pass - Now that the spatial map is set up, we can act on
-    // relationships between particles, ie. spatial forces and collision
-    // detection. Additionally, unary forces can be applied in this pass.
-    resolve_collisions(spatial_map);
-    // NOTE: if no spatial relationships exist apply_unary_forces() can by 
-    // called in the first pass after(of before) the update step, and everything
-    // can be done in one pass.
+    update(dt);
+    resolve_collisions();
     return dt;
   }
 
   // Update the system state, and initialize the spatial map.
   void 
-  System::update(Spatial_map& spatial_map, Float_type dt)
+  System::update(Float_type dt)
   {
     for (Particle& particle : particles_)
     {
       particle.update(dt); // update position, velocity, etc.
       if (is_boundary_enabled()) check_boundary(particle);
-      spatial_map.index(particle);
+      spatial_map_.insert(particle);
       // if a particle radius is changed, largest_radius_ will need to be 
       // checked again.
       if (particle.radius() > largest_radius_) {
@@ -64,7 +50,7 @@ namespace SPPE {
   // Iterate through the particles and test for spatial relationships 
   // (collisions)
   void 
-  System::resolve_collisions(const Spatial_map &spatial_map)
+  System::resolve_collisions()
   {
     for (auto& particle : particles_)
     {
@@ -72,15 +58,15 @@ namespace SPPE {
       // in this pass.
       apply_unary_forces(particle);
 
-      const int query_r = spatial_map.discretize(particle.radius() + largest_radius_);
-      const int query_x = spatial_map.discretize(particle.position_[0]);
-      const int query_y = spatial_map.discretize(particle.position_[1]);
+      const int query_r = spatial_map_.discretize(particle.radius() + largest_radius_);
+      const int query_x = spatial_map_.discretize(particle.position_[0]);
+      const int query_y = spatial_map_.discretize(particle.position_[1]);
 
       for (int x = query_x - query_r; x <= query_x + query_r; ++x)
       {
         for (int y = query_y - query_r; y <= query_y + query_r; ++y)
         {
-          for (Particle* p2 : spatial_map.query(x, y))
+          for (Particle* p2 : spatial_map_.query(x, y))
           {
             // Since iteration occurs through a contiguous array with pointer, 
             // p1: ++p1 > p1. Duplicate collision tests can be avoided by 

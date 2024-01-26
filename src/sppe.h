@@ -16,7 +16,7 @@ namespace SPPE {
 
     // Construct an SPPE particle system that can handle a max of n particles.
     System(std::size_t n = 20'000)
-      : max_particles_(n) { particles_.reserve(n); }
+      : max_particles_(n), spatial_map_(1, n) { particles_.reserve(n); }
     
     // Advance the system state in real time.
     Float_type run();
@@ -63,13 +63,14 @@ namespace SPPE {
     void apply_unary_forces(Particle& particle) 
     { for (const auto& f : unary_forces_) particle.apply_force(f(particle)); }
     // Update the system state.
-    void update(Spatial_map&, Float_type dt);
+    void update(Float_type dt);
     // Check and resolve boundary collisions.
     void check_boundary(Particle& particle);
     // Resolve particle-particle collisions.
-    void resolve_collisions(const Spatial_map&);
+    void resolve_collisions();
   private:
     const std::size_t max_particles_;
+    Spatial_map spatial_map_;
     std::vector<Particle> particles_;           // particle data
     std::vector<Unary_force_f> unary_forces_;   // unary force functions
     
