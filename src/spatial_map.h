@@ -22,68 +22,77 @@ namespace SPPE {
     static constexpr std::size_t n_cells = 200 * 200; // a good number for n_cells is n_particles
     static constexpr std::size_t table_size = n_cells + 1;
   public:
-    // Construct a spatial map meant for n particles
-    Spatial_map(std::size_t n, Float_type spacing)
-      : spacing_(spacing) { reset(); particle_indices_.reserve(n); particles_.reserve(n); }
+    // Construct a spatial map add reserve space for n particles
+    Spatial_map(Float_type spacing, std::size_t n = 20'000);
 
     // Reset the map.
-    void reset() { std::fill_n(count_array_, table_size, 0); particles_.clear(); }
+    void clear() { std::fill_n(count_array_, table_size, 0); particles_.clear(); /*particle_indices_.clear();*/ }
     
     // Return a span of particle pointers that correspond to the grid position {x,y}
-    std::span<Particle* const> query(int x, int y) const;
+    std::span<Particle* const> query(int x, int y);
 
-    // "indexing" a particle consists of incrementing the count of the cell that 
-    // it maps to.
-    void index(Particle& p) 
-    { 
-      ++count_array_[hash(discretize(p.position()[0]), 
-                          discretize(p.position()[1]))];
-      particles_.push_back(&p);
-      is_built_ = false;
+    // "insert" a particle into the map
+    void insert(Particle& particle);
 
-    } // index a particle
+    // Set the cell size/spacing. Note: this will delete the map.
+    void set_spacing(Float_type spacing) { spacing_ = spacing; clear(); }
 
-    void build();
     int discretize(Float_type x) const { return std::ceil(x / spacing_); }
-  
   private:
     static constexpr int primes[] = { 92837111, 689287499, 283923481 };
     std::size_t hash(int x, int y) const 
     { return (x * primes[0] ^ y * primes[1]) % n_cells; }
+    // convenience overload for hash
     std::size_t hash(const Particle& p)
     { return hash(discretize(p.position()[0]), discretize(p.position()[1])); }
-
+    // Build the map given the particles inserted so far
+    void build();
   private:
-    int count_array_[table_size];
-    std::vector<Particle*> particle_indices_;
-    std::vector<Particle*> particles_;
-    const Float_type spacing_;
+    std::vector<Particle*> particles_;    // array of inserted particle pointers
+    std::vector<Particle*> buckets_;      // above array sorted into "buckets"
+    int count_array_[table_size];         // count of particles in each bucket
+    Float_type spacing_;                  // granularity of the spatial grid
     bool is_built_{false};
   };
-    
-  inline std::span<Particle* const>
-  Spatial_map::query(int x, int y) const
-  {
-    if (!is_built_) x = 0;
 
-    const auto index = hash(x, y);
-    const std::size_t n = count_array_[index + 1] - count_array_[index];
-    // ASSERT: 0 < n <= size - offset, (size - offset) is positive when (offset < size)
-    return { particle_indices_.begin() + count_array_[index], n };
+  inline
+  Spatial_map::Spatial_map(Float_type spacing, std::size_t n)
+    : spacing_(spacing), buckets_(n, nullptr)
+  {
+    clear();
+    particles_.reserve(n);
+    is_built_ = false;
+  }
+
+  inline void
+  Spatial_map::insert(Particle& particle) 
+  { 
+    // FIXME: buckets_ does not resize if particles_ does
+    ++count_array_[hash(particle)];
+    particles_.push_back(&particle);
+    is_built_ = false;
+  }
+
+  inline std::span<Particle* const>
+  Spatial_map::query(int x, int y)
+  {
+    if (!is_built_) build();
+
+    const auto i = hash(x, y);
+    const std::size_t n = count_array_[i + 1] - count_array_[i];
+    // ASSERT: 0 < n <= size - offset
+    return { buckets_.begin() + count_array_[i], n };
   }
 
   inline void
   Spatial_map::build()
-
   {
     std::partial_sum(count_array_, count_array_ + table_size, count_array_);
     
-    for (auto particle : particles_)
+    for (auto particle_p : particles_)
     {
-      const auto index = hash(discretize(particle->position()[0]),
-                              discretize(particle->position()[1]));
-
-      particle_indices_[--count_array_[index]] = particle;
+      const auto index = --count_array_[hash(*particle_p)];
+      buckets_[index] = particle_p;
     }
     is_built_ = true;
   }
