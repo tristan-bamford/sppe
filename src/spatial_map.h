@@ -43,7 +43,7 @@ namespace SPPE {
 
     } // index a particle
 
-    void build(const std::span<Particle>&);
+    void build();
     int discretize(Float_type x) const { return std::ceil(x / spacing_); }
   
   private:
@@ -64,6 +64,8 @@ namespace SPPE {
   inline std::span<Particle* const>
   Spatial_map::query(int x, int y) const
   {
+    if (!is_built_) x = 0;
+
     const auto index = hash(x, y);
     const std::size_t n = count_array_[index + 1] - count_array_[index];
     // ASSERT: 0 < n <= size - offset, (size - offset) is positive when (offset < size)
@@ -71,7 +73,7 @@ namespace SPPE {
   }
 
   inline void
-  Spatial_map::build(const std::span<Particle>&)
+  Spatial_map::build()
 
   {
     std::partial_sum(count_array_, count_array_ + table_size, count_array_);

@@ -1,12 +1,12 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -march=native -ftree-vectorize -ffast-math -Wall -g -O3
+CXXFLAGS = -std=c++20 -O3 -march=native -ftree-vectorize -ffast-math -Wall #-g
 
 SRC = src
 BIN = bin
 LIB = lib
 BUILD = bin
 
-CXXFLAGS += -Ilib/num_array/include
+CXXFLAGS += -Ilib/num_array/include -Isrc
 
 TARGET = $(BIN)/libsppe.a
 OBJECTS = $(addprefix $(BUILD)/, sppe.o particle.o)
@@ -26,4 +26,7 @@ $(BUILD)/particle.o: $(addprefix $(SRC)/, particle.cc particle.h types.h)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:
-	$(RM) $(OBJECTS) $(TARGET)
+	$(RM) $(OBJECTS)
+
+tests: tests/main.cc $(TARGET)
+	$(CXX) $(CXXFLAGS) tests/main.cc $(TARGET) -o $(BIN)/test

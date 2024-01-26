@@ -32,7 +32,7 @@ namespace SPPE {
 
     // Second pass - finish initializing the index table and build the particle 
     // indices(pointers) in the spatial map.
-    spatial_map.build(particles_);
+    spatial_map.build();
 
     // Third pass - Now that the spatial map is set up, we can act on
     // relationships between particles, ie. spatial forces and collision
