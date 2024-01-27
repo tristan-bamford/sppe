@@ -10,25 +10,24 @@
 
 namespace SPPE {
   
-  // Sparse spatial hash map.
-  // This works in two passes. In the first, the number of particles that map to each cell are counted.index() is called on each particle
-  // until the count_array_ is initialized to
-  // the number of particles that map to each location in count_array_.
-  // In the second pass, particle indices are arranged in a contiguous array 
-  // such that "buckets" can then be queried as spans.
-  // The map can be reset with reset();
-  // Adding or updating particles invalidates the map
+  // Spatial_map is a sparse spatial hash map.
+  // On the surface, it is meant to mimic the usage of a typical map; insert(), 
+  // query(), clear(), etc...Behind the scenes, the map needs to be rebuilt 
+  // every time a particle is inserted. In practice, this is actually done when 
+  // query() is first called. This means that inserting and querying is 
+  // optimally efficient when done in two separate passes.
+  
   class Spatial_map {
     static constexpr std::size_t n_cells = 200 * 200; // a good number for n_cells is n_particles
-    static constexpr std::size_t table_size = n_cells + 1;
+    static constexpr std::size_t count_array_sz = n_cells + 1;
   public:
     // Construct a spatial map add reserve space for n particles
-    Spatial_map(Float_type spacing, std::size_t n = 20'000);
+    Spatial_map(Float_type spacing, std::size_t n = n_cells);
 
     // Reset the map.
-    void clear() { std::fill_n(count_array_, table_size, 0); particles_.clear(); /*particle_indices_.clear();*/ }
-    
-    // Return a span of particle pointers that correspond to the grid position {x,y}
+    void clear();
+
+    // Return a span of particle pointers that correspond to a grid position
     std::span<Particle* const> query(int x, int y);
 
     // "insert" a particle into the map
@@ -48,10 +47,10 @@ namespace SPPE {
     // Build the map given the particles inserted so far
     void build();
   private:
+    Float_type spacing_;                  // granularity of the spatial grid
     std::vector<Particle*> particles_;    // array of inserted particle pointers
     std::vector<Particle*> buckets_;      // above array sorted into "buckets"
-    int count_array_[table_size];         // count of particles in each bucket
-    Float_type spacing_;                  // granularity of the spatial grid
+    int count_array_[count_array_sz];     // count of particles in each bucket
     bool is_built_{false};
   };
 
@@ -61,16 +60,14 @@ namespace SPPE {
   {
     clear();
     particles_.reserve(n);
-    is_built_ = false;
   }
 
   inline void
   Spatial_map::insert(Particle& particle) 
   { 
-    // FIXME: buckets_ does not resize if particles_ does
     ++count_array_[hash(particle)];
     particles_.push_back(&particle);
-    is_built_ = false;
+    is_built_ = false; // Adding or updating particles invalidates the map
   }
 
   inline std::span<Particle* const>
@@ -84,11 +81,20 @@ namespace SPPE {
     return { buckets_.begin() + count_array_[i], n };
   }
 
+  inline void 
+  Spatial_map::clear() 
+  {
+    std::fill_n(count_array_, count_array_sz, 0); 
+    particles_.clear();
+    is_built_ = false;
+  }
+
   inline void
   Spatial_map::build()
   {
-    std::partial_sum(count_array_, count_array_ + table_size, count_array_);
+    std::partial_sum(count_array_, count_array_ + count_array_sz, count_array_);
     
+    buckets_.resize(particles_.size());
     for (auto particle_p : particles_)
     {
       const auto index = --count_array_[hash(*particle_p)];
