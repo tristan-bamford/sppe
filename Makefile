@@ -6,7 +6,7 @@ BIN = bin
 LIB = lib
 BUILD = bin
 
-CXXFLAGS += -Ilib/num_array/include
+CXXFLAGS += -Ilib/num_array/include -Isrc
 
 TARGET = $(BIN)/libsppe.a
 OBJECTS = $(addprefix $(BUILD)/, sppe.o particle.o)
@@ -27,3 +27,7 @@ $(BUILD)/particle.o: $(addprefix $(SRC)/, particle.cc particle.h types.h)
 
 clean:
 	$(RM) $(OBJECTS)
+
+tests: $(TARGET)
+	$(CXX) $(CXXFLAGS) tests/test.cc $(TARGET) -o bin/test
+#	bin/test
