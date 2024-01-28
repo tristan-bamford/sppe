@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-#include "sppe.h"
+#include "particle.h"
 
 namespace SPPE {
   
@@ -18,57 +18,62 @@ namespace SPPE {
   // such that "buckets" can then be queried as spans.
   // The map can be reset with reset(); 
   class Spatial_map {
-    static constexpr std::size_t n_cells = 200 * 200; // a good number for n_cells is n_particles
-    static constexpr std::size_t table_size = n_cells + 1;
+    static constexpr std::size_t map_size = 200 * 200; // a good number for map_size is n particles
+    static constexpr std::size_t count_array_sz = map_size + 1;
   public:
     // Construct a spatial map meant for n particles
-    Spatial_map(std::size_t n, Float_type spacing)
-      : particle_indices_(n, nullptr), spacing_(spacing) { reset(); }
+    Spatial_map(Float_type spacing, std::size_t n = 20'000)
+      : buckets_(n, nullptr), spacing_(spacing) { reset(); }
 
     // Reset the map.
-    void reset() { std::fill_n(count_array_, table_size, 0); }
+    void reset() { std::fill_n(count_array_, count_array_sz, 0); }
     
     // Return a span of particle pointers that correspond to the grid position {x,y}
     std::span<Particle* const> query(int x, int y) const;
 
     // "indexing" a particle consists of incrementing the count of the cell that 
     // it maps to.
-    void index(const Particle& p) 
-    { ++count_array_[hash(discretize(p.position_[0]), 
-                          discretize(p.position_[1]))]; } // index a particle
+    void index(const Particle& particle) { ++count_array_[hash(particle)]; }
     
     void build(const std::span<Particle>&);
+
     int discretize(Float_type x) const { return std::ceil(x / spacing_); }
   
+    void set_spacing(Float_type spacing) { spacing_ = spacing; reset(); }
   private:
     static constexpr int primes[] = { 92837111, 689287499, 283923481 };
     std::size_t hash(int x, int y) const 
-    { return (x * primes[0] ^ y * primes[1]) % n_cells; }
+    { return (x * primes[0] ^ y * primes[1]) % map_size; }
+    std::size_t hash(const Particle& p) const 
+    { return hash(discretize(p.position()[0]), discretize(p.position()[1])); }
+
   private:
-    int count_array_[table_size];
-    std::vector<Particle*> particle_indices_;
-    const Float_type spacing_;
+    int count_array_[count_array_sz];
+    std::vector<Particle*> buckets_;
+    Float_type spacing_;
   };
     
   inline std::span<Particle* const>
   Spatial_map::query(int x, int y) const
   {
-    const auto index = hash(x, y);
-    const std::size_t n = count_array_[index + 1] - count_array_[index];
-    return { particle_indices_.begin() + count_array_[index], n };
+    const auto i = hash(x, y);
+    const std::size_t n = count_array_[i + 1] - count_array_[i];
+    return { buckets_.begin() + count_array_[i], n };
   }
 
   inline void
   Spatial_map::build(const std::span<Particle>& particle_span)
   {
-    std::partial_sum(count_array_, count_array_ + table_size, count_array_);
-    
+    std::partial_sum(count_array_, count_array_ + count_array_sz, count_array_);
+    // The number of particles might not change much, but if it does, buckets_
+    // needs to be resized.
+    const std::size_t n_particles = count_array_[map_size]; 
+    buckets_.resize(n_particles);
+    // ASSERT: particle_span.size() == n_particles
     for (auto& particle : particle_span)
     {
-      const auto index = hash(discretize(particle.position_[0]),
-                              discretize(particle.position_[1]));
-
-      particle_indices_[--count_array_[index]] = &particle;
+      const auto index = --count_array_[hash(particle)];
+      buckets_[index] = &particle;
     }
   }
 } // namespace SPPE
